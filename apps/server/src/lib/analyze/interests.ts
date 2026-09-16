@@ -15,7 +15,7 @@
  */
 
 import { generateObject } from 'ai';
-import { openai } from '@ai-sdk/openai';
+import { openai } from '../openrouter';
 import { z } from 'zod';
 import { env } from 'cloudflare:workers';
 

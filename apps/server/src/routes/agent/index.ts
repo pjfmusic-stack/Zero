@@ -729,11 +729,88 @@ export class ZeroDriver extends DurableObject<ZeroEnv> {
       console.log(
         `[syncFolders] Starting folder sync for ${this.name} (threadCount: ${threadCount})`,
       );
-      await this.triggerSyncWorkflow('inbox');
+      // Self-hosted local dev: Cloudflare Workflows don't execute under
+      // `wrangler dev`, so run an inline read-only sync instead of the
+      // workflow (which would silently no-op). Read from Gmail only.
+      if (this.env.SELF_HOSTED === 'true') {
+        this.ctx.waitUntil(this.syncInboxInline('inbox'));
+      } else {
+        await this.triggerSyncWorkflow('inbox');
+      }
     } else {
       console.log(
         `[syncFolders] Skipping sync for ${this.name} - threadCount (${threadCount}) >= maxCount (${maxCount})`,
       );
+    }
+  }
+
+  // Self-hosted inline sync: mirrors sync-threads-workflow.ts but runs
+  // synchronously (CF Workflows don't execute under `wrangler dev`).
+  // READ-ONLY on Gmail: only threads.list / threads.get GETs; writes only
+  // to the local DB via the existing per-thread syncThread() path.
+  async syncInboxInline(folder: string): Promise<void> {
+    if (!this.driver) {
+      console.warn('[syncInboxInline] No driver available, skipping');
+      return;
+    }
+    const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+    const isQuotaError = (e: unknown) =>
+      /quota|rate ?limit|429/i.test(e instanceof Error ? e.message : String(e));
+    const MAX_PAGES = 10;
+    const PAGE_SIZE = 50;
+    const THREAD_DELAY_MS = 150;
+    const QUOTA_BACKOFF_MS = 65_000;
+    try {
+      let pageToken: string | undefined;
+      let pages = 0;
+      let synced = 0;
+      do {
+        let listResult: Awaited<ReturnType<typeof this.driver.list>> | undefined;
+        for (let attempt = 0; attempt < 3 && !listResult; attempt++) {
+          try {
+            listResult = await this.driver.list({
+              folder,
+              maxResults: PAGE_SIZE,
+              pageToken: pageToken || undefined,
+            });
+          } catch (e) {
+            if (!isQuotaError(e) || attempt === 2) throw e;
+            console.warn(`[syncInboxInline] Gmail quota hit listing ${folder}; backing off`);
+            await sleep(QUOTA_BACKOFF_MS);
+          }
+        }
+        if (!listResult) break;
+        const items = listResult.threads ?? [];
+        console.log(
+          `[syncInboxInline] ${this.name}/${folder} page ${pages + 1}: ${items.length} threads`,
+        );
+        for (const item of items) {
+          if (typeof item.id !== 'string' || !item.id) continue;
+          for (let attempt = 0; attempt < 3; attempt++) {
+            try {
+              await this.syncThread({ threadId: item.id });
+              synced++;
+              break;
+            } catch (e) {
+              if (isQuotaError(e) && attempt < 2) {
+                console.warn(`[syncInboxInline] Gmail quota hit on ${item.id}; backing off`);
+                await sleep(QUOTA_BACKOFF_MS);
+                continue;
+              }
+              console.error(`[syncInboxInline] Failed to sync thread ${item.id}:`, e);
+              break;
+            }
+          }
+          await sleep(THREAD_DELAY_MS);
+        }
+        pageToken = listResult.nextPageToken ?? undefined;
+        pages++;
+      } while (pageToken && pages < MAX_PAGES);
+      console.log(
+        `[syncInboxInline] Completed ${this.name}/${folder}: ${synced} threads across ${pages} pages`,
+      );
+    } catch (error) {
+      console.error(`[syncInboxInline] Sync failed for ${this.name}/${folder}:`, error);
     }
   }
 

@@ -34,6 +34,7 @@ export type ZeroEnv = {
   JWT_SECRET: 'secret';
   ELEVENLABS_API_KEY: '1234567890';
   DISABLE_CALLS: 'true' | '';
+  SELF_HOSTED?: string;
   DROP_AGENT_TABLES: 'false';
   THREAD_SYNC_MAX_COUNT: '5' | '20' | '10';
   THREAD_SYNC_LOOP: 'false' | 'true';

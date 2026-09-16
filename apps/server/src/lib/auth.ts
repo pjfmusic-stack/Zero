@@ -350,12 +350,13 @@ const createAuthConfig = () => {
       },
       cookiePrefix: env.NODE_ENV === 'development' ? 'better-auth-dev' : 'better-auth',
       crossSubDomainCookies: {
-        enabled: true,
+        enabled: false,
         domain: env.COOKIE_DOMAIN,
       },
     },
     baseURL: env.VITE_PUBLIC_BACKEND_URL,
     trustedOrigins: [
+      'https://3-151-173-7.sslip.io',
       'https://app.0.email',
       'https://sapi.0.email',
       'https://staging.0.email',
@@ -364,8 +365,7 @@ const createAuthConfig = () => {
     ],
     session: {
       cookieCache: {
-        enabled: true,
-        maxAge: 60 * 60 * 24 * 30, // 30 days
+        enabled: false,
       },
       expiresIn: 60 * 60 * 24 * 30, // 30 days
       updateAge: 60 * 60 * 24 * 3, // 1 day (every 1 day the session expiration is updated)

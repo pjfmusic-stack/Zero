@@ -46,6 +46,7 @@ export const authProviders = (env: Record<string, string>): ProviderConfig[] => 
       ],
       clientId: env.GOOGLE_CLIENT_ID,
       clientSecret: env.GOOGLE_CLIENT_SECRET,
+      redirectURI: 'https://3-151-173-7.sslip.io/mail-api/auth/callback/google',
     },
     required: true,
   },

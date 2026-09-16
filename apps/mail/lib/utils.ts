@@ -622,6 +622,8 @@ export const withExponentialBackoff = async <T>(
 const PRO_PLANS = ['pro-example', 'pro_annual', 'team', 'enterprise'] as const;
 
 export const isProCustomer = (customer: Customer) => {
+  // Self-hosted: no billing backend, grant Pro by default.
+  if (import.meta.env.VITE_SELF_HOSTED === 'true') return true;
   return customer?.products && Array.isArray(customer.products)
     ? customer.products.some((product) =>
         PRO_PLANS.some((plan) => product.id?.includes(plan) || product.name?.includes(plan)),

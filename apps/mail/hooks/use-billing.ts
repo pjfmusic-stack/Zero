@@ -64,11 +64,19 @@ export const useBilling = () => {
   const { attach, track, openBillingPortal } = useAutumn();
 
   useEffect(() => {
-    if (error) signOut();
+    // Self-hosted installs without billing (empty AUTUMN key) will get a
+    // routine error from useCustomer(); that must NOT sign the user out.
+    // Only a real auth failure should. We log it and continue unauthenticated.
+    if (error) {
+      console.error('Billing customer lookup failed (not signing out):', error);
+    }
   }, [error]);
 
   const { isPro, ...customerFeatures } = useMemo(() => {
-    const isPro = customer ? isProCustomer(customer) : false;
+    // Self-hosted: no Autumn billing backend, so `customer` is null. Grant Pro
+    // unconditionally so all AI features (chat/draft/auto-label) are available.
+    const selfHosted = import.meta.env.VITE_SELF_HOSTED === 'true';
+    const isPro = selfHosted ? true : customer ? isProCustomer(customer) : false;
 
     if (!customer?.features) return { isPro, ...DEFAULT_FEATURES };
 
