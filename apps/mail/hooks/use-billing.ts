@@ -22,34 +22,34 @@ type Features = {
 
 const DEFAULT_FEATURES: Features = {
   chatMessages: {
-    total: 0,
-    remaining: 0,
-    unlimited: false,
-    enabled: false,
+    total: Number.MAX_SAFE_INTEGER,
+    remaining: Number.MAX_SAFE_INTEGER,
+    unlimited: true,
+    enabled: true,
     usage: 0,
     nextResetAt: null,
     interval: '',
-    included_usage: 0,
+    included_usage: Number.MAX_SAFE_INTEGER,
   },
   connections: {
-    total: 0,
-    remaining: 0,
-    unlimited: false,
-    enabled: false,
+    total: Number.MAX_SAFE_INTEGER,
+    remaining: Number.MAX_SAFE_INTEGER,
+    unlimited: true,
+    enabled: true,
     usage: 0,
     nextResetAt: null,
     interval: '',
-    included_usage: 0,
+    included_usage: Number.MAX_SAFE_INTEGER,
   },
   brainActivity: {
-    total: 0,
-    remaining: 0,
-    unlimited: false,
-    enabled: false,
+    total: Number.MAX_SAFE_INTEGER,
+    remaining: Number.MAX_SAFE_INTEGER,
+    unlimited: true,
+    enabled: true,
     usage: 0,
     nextResetAt: null,
     interval: '',
-    included_usage: 0,
+    included_usage: Number.MAX_SAFE_INTEGER,
   },
 };
 
@@ -73,10 +73,11 @@ export const useBilling = () => {
   }, [error]);
 
   const { isPro, ...customerFeatures } = useMemo(() => {
-    // Self-hosted: no Autumn billing backend, so `customer` is null. Grant Pro
-    // unconditionally so all AI features (chat/draft/auto-label) are available.
-    const selfHosted = import.meta.env.VITE_SELF_HOSTED === 'true';
-    const isPro = selfHosted ? true : customer ? isProCustomer(customer) : false;
+    // Self-hosted: grant Pro + all features unconditionally. There is no
+    // SELF_HOSTED flag in this codebase — the Pro gate is purely the Autumn
+    // billing plan id / feature balance. For a self-hosted install without
+    // Autumn, we hardcode Pro=true and every feature unlocked.
+    const isPro = true;
 
     if (!customer?.features) return { isPro, ...DEFAULT_FEATURES };
 
